@@ -2,7 +2,7 @@
 
 TensorRT OpenPifPaf Pose Estimation is a Jetson-friendly application that runs inference using a [TensorRT](https://developer.nvidia.com/tensorrt) engine to extract human poses. The provided TensorRT engine is generated from an ONNX model exported from [OpenPifPaf](https://github.com/vita-epfl/openpifpaf) version 0.12a4 using [ONNX-TensorRT](https://github.com/onnx/onnx-tensorrt) repo.
 
-You can read [this article]() on our website to learn more about the TensorRT OpenPifPaf Pose Estimation application.
+You can read [this article](https://neuralet.com/article/pose-estimation-on-nvidia-jetson-platforms-using-openpifpaf/) on our website to learn more about the TensorRT OpenPifPaf Pose Estimation application.
 
 ## Getting Started
 

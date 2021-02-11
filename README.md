@@ -31,7 +31,7 @@ cd pose-estimation/
 * You need to have [JetPack 4.4](https://developer.nvidia.com/jetpack-43-archive) installed on your Jetson device to run this Pose Estimation application.
 * This application gets an image or a video as input in 321x193 or 641x369 resolutions. The two ONNX models with these input sizes of OpenPifPaf version 0.12a4 (`openpifpaf_resnet50_321_193.onnx` and `openpifpaf_resnet50_641_369.onnx`) are provided in [Neuralet-Models](https://github.com/neuralet/neuralet-models/tree/master/ONNX/openpifpaf_12a4).
 * The ONNX model will be downloaded based on the specifications in the Config file and the TensorRT Engine will be generated from the ONNX model automatically through the application with performing the following steps.
-
+* Note that you need to have installed nvidia-container-runtime and set docker daemon default runtime to nvidia in `/etc/docker/daemon.json` to have GPU access during docker build
 ```bash
 # 1) Download/Copy Sample input
 ./download_sample_video.sh

@@ -1,60 +1,50 @@
 import cv2
 import numpy as np   
-from pose import PoseEstimator 
-from decoder import PifPafDecoder
+from openpifpaf_tensorrt import PoseEstimator 
+from decoder import CifCafDecoder
+from utils.fps_calculator import convert_infr_time_to_fps
 
 import random
 import logging
 import sys
 import configparser
+import time 
 
 def inference_image(img_orig, pose_estimator, model_input_size,config):
     img_input = cv2.cvtColor(img_orig, cv2.COLOR_BGR2RGB)
     img_normalized = np.zeros(img_orig.shape)
     img_normalized = cv2.normalize(img_input,  img_normalized, 0, 255, cv2.NORM_MINMAX)
-
+    t_begin = time.perf_counter()
     heads = pose_estimator.inference(img_normalized)
-    #convert heads to fields
-    fields = [[field.cpu().numpy() for field in head] for head in heads]
-    # index by batch entry
-    fields = [
-        [[field[i] for field in head] for head in fields]
-        for i in range(1) # 1 is image_batch.shape[0] which is num images in batch
-        ]
-
-    decoder = PifPafDecoder()
-
-    annotations = decoder.decode(fields)
+    inference_time = time.perf_counter() - t_begin
+    
+    t_begin = time.perf_counter()
+    decoder = CifCafDecoder()
+    fields = heads
+    predictions = decoder.decode(fields)
+    decoder_time = time.perf_counter() - t_begin
+    fps = convert_infr_time_to_fps(inference_time+decoder_time)
+    print(f'inference time is {inference_time} and decoder time is :{decoder_time} and fps:{fps}') 
 
     img_vis = cv2.resize(img_orig, model_input_size)
 
-    for l in annotations:
-        for annotation_object in l:
-             pred = annotation_object.data
-             pred_visible = pred[pred[:, 2] > 0]
-             xs = pred_visible[:, 0]
-             ys = pred_visible[:, 1]
-             color = (random.randint(60, 200), random.randint(0, 255), random.randint(0, 255))
-             for x,y in zip(xs,ys):
-                 cv2.circle(img_vis,(x, y), 2, color, -1)
-             decode_order=[(a,b) for (a,b,c,d) in annotation_object.decoding_order]
-             for index, (a,b) in enumerate(decode_order):
-                 if (a,b) in annotation_object.skeleton or (b,a) in annotation_object.skeleton:
-                    x1,y1,_ = annotation_object.decoding_order[index][2]   
-                    x2,y2,_ = annotation_object.decoding_order[index][3]
-                 else:
-                     continue
-                 cv2.line(img_vis, ( x1, y1), ( x2, y2), color, 1)
-             #x_min = int(xs.min())
-             #x_max = int(xs.max())
-             #y_min = int(ys.min())
-             #y_max = int(ys.max())
-             #xmin = int(max(x_min, 0))
-             #xmax = int(min(x_max, img_vis.shape[1]))
-             #ymin = int(max(y_min, 0))
-             #ymax = int(min(y_max, img_vis.shape[0]))
-             #cv2.rectangle(img_vis, (xmin, ymin), (xmax, ymax), color, 2) 
-             #print(xmin, ymin, xmax, ymax)
+    for i, pred_object in enumerate(predictions):
+
+        pred = pred_object.data
+        pred_visible = pred[pred[:, 2] > 0]
+        xs = pred_visible[:, 0]
+        ys = pred_visible[:, 1]
+        color = (random.randint(60, 200), random.randint(0, 255), random.randint(0, 255))
+        for x,y in zip(xs,ys):
+             cv2.circle(img_vis,(x, y), 2, color, -1)
+        decode_order=[(a,b) for (a,b,c,d) in pred_object.decoding_order]
+        for index, (a,b) in enumerate(decode_order):
+            if (a+1,b+1) in pred_object.skeleton or (b+1,a+1) in pred_object.skeleton:
+                x1,y1,_ = pred_object.decoding_order[index][2]   
+                x2,y2,_ = pred_object.decoding_order[index][3]
+            else:
+                continue
+            cv2.line(img_vis, ( x1, y1), ( x2, y2), color, 1)
     return img_vis
 
  
@@ -64,7 +54,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
     w,h = [int (i) for i in config['PoseEstimator']['InputSize'].split(',')] 
     model_input_size=(w,h) 
-    pose_estimator = PoseEstimator(config['PoseEstimator']['Engine'], model_input_size)
+    pose_estimator = PoseEstimator(config)
     input_path=config['App']['InputPath']
     output_path=config['App']['OutputPath']
     if config['App']['ProcessVideo'] == 'yes':
